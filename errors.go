@@ -23,6 +23,9 @@ var (
 
 	// ErrEmptyBatch is returned when PostBatch is called with no reports.
 	ErrEmptyBatch = errors.New("stathat: empty batch")
+
+	// ErrRateLimited is returned when the StatHat API returns a rate limit error.
+	ErrRateLimited = errors.New("stathat: rate limited")
 )
 
 // APIError represents a non-success HTTP response from the StatHat API.

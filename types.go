@@ -55,7 +55,7 @@ const (
 
 // Alert represents an alert configuration on a stat.
 type Alert struct {
-	ID         int       `json:"id"`
+	ID         string    `json:"id"`
 	StatID     string    `json:"stat_id"`
 	StatName   string    `json:"stat_name"`
 	Kind       AlertKind `json:"kind"`

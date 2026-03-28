@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -92,28 +93,69 @@ func (c *Client) exportPath(path string) (string, error) {
 }
 
 // doJSON performs an HTTP request and decodes the JSON response body into dst.
-// If dst is nil, the response body is discarded.
+// If dst is nil, the response body is discarded. Rate-limited requests are
+// retried with exponential backoff (up to 5 attempts).
 func (c *Client) doJSON(ctx context.Context, req *http.Request, dst any) error {
+	const maxAttempts = 5
+
+	for attempt := range maxAttempts {
+		body, statusCode, err := c.doHTTP(ctx, req)
+		if err != nil {
+			return err
+		}
+
+		if dst == nil {
+			return nil
+		}
+
+		// StatHat sometimes returns error objects with 200 status (e.g. rate limits).
+		var errObj struct {
+			Error string `json:"Error"`
+		}
+		if json.Unmarshal(body, &errObj) == nil && errObj.Error != "" {
+			if strings.Contains(errObj.Error, "Rate limit") {
+				if attempt < maxAttempts-1 {
+					backoff := time.Duration(1<<attempt) * time.Second
+					c.logger.Info("rate limited, backing off", "backoff", backoff, "attempt", attempt+1)
+					select {
+					case <-time.After(backoff):
+						continue
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				}
+				return ErrRateLimited
+			}
+			return &APIError{StatusCode: statusCode, Message: errObj.Error}
+		}
+
+		if err := json.Unmarshal(body, dst); err != nil {
+			return fmt.Errorf("stathat: decoding response: %w", err)
+		}
+		return nil
+	}
+	return ErrRateLimited
+}
+
+// doHTTP executes the request, checks for non-2xx errors, and returns the response body.
+func (c *Client) doHTTP(ctx context.Context, req *http.Request) ([]byte, int, error) {
 	req = req.WithContext(ctx)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("stathat: HTTP request: %w", err)
+		return nil, 0, fmt.Errorf("stathat: HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if err := checkResponse(resp); err != nil {
-		return err
+		return nil, resp.StatusCode, err
 	}
 
-	if dst == nil {
-		return nil
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("stathat: reading response body: %w", err)
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
-		return fmt.Errorf("stathat: decoding response: %w", err)
-	}
-	return nil
+	return body, resp.StatusCode, nil
 }
 
 // checkResponse returns an *APIError for non-2xx responses.

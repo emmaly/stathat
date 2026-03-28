@@ -13,8 +13,8 @@ import (
 func TestListAlerts(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]Alert{
-			{ID: 1, StatID: "s1", StatName: "hits", Kind: AlertKindValue, TimeWindow: "1h"},
-			{ID: 2, StatID: "s2", StatName: "errors", Kind: AlertKindData, TimeWindow: "5m"},
+			{ID: "1", StatID: "s1", StatName: "hits", Kind: AlertKindValue, TimeWindow: "1h"},
+			{ID: "2", StatID: "s2", StatName: "errors", Kind: AlertKindData, TimeWindow: "5m"},
 		})
 	}))
 	defer srv.Close()
@@ -39,14 +39,14 @@ func TestGetAlert(t *testing.T) {
 			w.Write([]byte(`{"msg":"not found"}`))
 			return
 		}
-		json.NewEncoder(w).Encode(Alert{ID: 1, StatName: "hits", Kind: AlertKindValue})
+		json.NewEncoder(w).Encode(Alert{ID: "1", StatName: "hits", Kind: AlertKindValue})
 	}))
 	defer srv.Close()
 
 	c := New(WithAccessToken("tok"), WithExportURL(srv.URL))
 
 	t.Run("found", func(t *testing.T) {
-		alert, err := c.GetAlert(context.Background(), 1)
+		alert, err := c.GetAlert(context.Background(), "1")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -56,7 +56,7 @@ func TestGetAlert(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		_, err := c.GetAlert(context.Background(), 999)
+		_, err := c.GetAlert(context.Background(), "999")
 		if !errors.Is(err, ErrAlertNotFound) {
 			t.Errorf("expected ErrAlertNotFound, got %v", err)
 		}
@@ -72,7 +72,7 @@ func TestCreateValueAlert(t *testing.T) {
 		body, _ := io.ReadAll(r.Body)
 		gotBody = string(body)
 		json.NewEncoder(w).Encode(Alert{
-			ID: 10, StatID: "s1", Kind: AlertKindValue,
+			ID: "10", StatID: "s1", Kind: AlertKindValue,
 			TimeWindow: "1h", Operator: "greater than", Threshold: 100,
 		})
 	}))
@@ -89,8 +89,8 @@ func TestCreateValueAlert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if alert.ID != 10 {
-		t.Errorf("alert ID: got %d, want 10", alert.ID)
+	if alert.ID != "10" {
+		t.Errorf("alert ID: got %s, want 10", alert.ID)
 	}
 
 	vals, _ := parseFormBody(gotBody)
@@ -114,7 +114,7 @@ func TestCreateDeltaAlert(t *testing.T) {
 		if vals["time_delta"] != "1d" {
 			t.Errorf("time_delta: got %q, want 1d", vals["time_delta"])
 		}
-		json.NewEncoder(w).Encode(Alert{ID: 11, Kind: AlertKindDelta})
+		json.NewEncoder(w).Encode(Alert{ID: "11", Kind: AlertKindDelta})
 	}))
 	defer srv.Close()
 
@@ -146,7 +146,7 @@ func TestCreateDataAlert(t *testing.T) {
 		if _, ok := vals["threshold"]; ok {
 			t.Error("data alert should not have threshold")
 		}
-		json.NewEncoder(w).Encode(Alert{ID: 12, Kind: AlertKindData})
+		json.NewEncoder(w).Encode(Alert{ID: "12", Kind: AlertKindData})
 	}))
 	defer srv.Close()
 
@@ -172,7 +172,7 @@ func TestDeleteAlert(t *testing.T) {
 	defer srv.Close()
 
 	c := New(WithAccessToken("tok"), WithExportURL(srv.URL))
-	err := c.DeleteAlert(context.Background(), 42)
+	err := c.DeleteAlert(context.Background(), "42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

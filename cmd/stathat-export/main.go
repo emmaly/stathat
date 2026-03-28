@@ -180,7 +180,7 @@ func writeAlerts(path string, alerts []stathat.Alert) error {
 	w.Write([]string{"id", "stat_id", "stat_name", "kind", "time_window", "operator", "threshold", "percentage", "time_delta"})
 	for _, a := range alerts {
 		w.Write([]string{
-			fmt.Sprintf("%d", a.ID),
+			a.ID,
 			a.StatID,
 			a.StatName,
 			string(a.Kind),

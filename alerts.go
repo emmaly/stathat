@@ -31,8 +31,8 @@ func (c *Client) ListAlerts(ctx context.Context) ([]Alert, error) {
 
 // GetAlert returns a single alert by ID.
 // Returns ErrAlertNotFound if the alert does not exist.
-func (c *Client) GetAlert(ctx context.Context, alertID int) (Alert, error) {
-	u, err := c.exportPath("/alerts/" + strconv.Itoa(alertID))
+func (c *Client) GetAlert(ctx context.Context, alertID string) (Alert, error) {
+	u, err := c.exportPath("/alerts/" + alertID)
 	if err != nil {
 		return Alert{}, err
 	}
@@ -94,8 +94,8 @@ func (c *Client) CreateAlert(ctx context.Context, params CreateAlertParams) (Ale
 }
 
 // DeleteAlert deletes an alert by ID.
-func (c *Client) DeleteAlert(ctx context.Context, alertID int) error {
-	u, err := c.exportPath("/alerts/" + strconv.Itoa(alertID))
+func (c *Client) DeleteAlert(ctx context.Context, alertID string) error {
+	u, err := c.exportPath("/alerts/" + alertID)
 	if err != nil {
 		return err
 	}
